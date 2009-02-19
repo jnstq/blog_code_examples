@@ -2,18 +2,18 @@
 
 require "common"
 
+FileUtils.mkdir_p @temp_dir
 begin
-  FileUtils.mkdir_p @temp_dir
+  [@mysql_database].flatten.each do |database|
+    dump_file = "#{@temp_dir}/#{database}.dump.sql.gz"
 
-  # assumes the bucket's empty
-  dump_file = "#{@temp_dir}/dump.sql.gz"
-  
-  cmd = "mysqldump --quick --single-transaction --create-options -u#{@mysql_user}  --flush-logs --master-data=2 --delete-master-logs"
-  cmd += " -p'#{@mysql_password}'" unless @mysql_password.nil?
-  cmd += " #{@mysql_database} | gzip > #{dump_file}"
-  run(cmd)
-  
-  AWS::S3::S3Object.store(File.basename(dump_file), open(dump_file), @s3_bucket)
+    cmd = "mysqldump -u#{@mysql_user}"
+    cmd += " -p'#{@mysql_password}'" unless @mysql_password.nil?
+    cmd += " #{database} | gzip > #{dump_file}"
+    run(cmd)
+
+    AWS::S3::S3Object.store(File.basename(dump_file), open(dump_file), @s3_bucket)
+  end
 ensure
   FileUtils.rm_rf(@temp_dir)
 end
